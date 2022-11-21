@@ -1,0 +1,251 @@
+# simulace Brownova pohybu
+# program pro demonstraci pohybu velké částice, postrkované malými
+# velká částice za sebou nechává stopu svého pohybu   
+# po spuštění se objeví okno s možností změnit předpřipravené hodnoty parametrů
+#
+# nastavení: 
+#           počet malých částic     N
+#           teplota                 t   udává rychlost pohybu
+#           váha velké částice      m1  
+#           váha malé částice       m2
+#           celková doba simulace   t
+#           přesnost simulace       d   počet kroků simulace za jednotku času
+#           
+#           2022, seminární práce
+#           Jan Šebor, PORG
+      
+
+# import knihoven             
+import numpy as np
+import random as rand
+from matplotlib import pyplot as plt
+from matplotlib import animation
+import tkinter as tk
+
+# zadefinování objektů částice a boxu
+class Atom():
+    def __init__(self, vx, vy, x, y, a, vaha, velikost, barva):
+        self.vx = vx
+        self.vy = vy
+        self.x = x
+        self.y = y
+        self.a = a
+        self.vaha = vaha
+        self.velikost = velikost
+        self.barva = barva
+        self.top = self.y + self.velikost
+        self.bottom = self.y - self.velikost
+        self.left = self.x - self.velikost
+        self.right = self.x + self.velikost
+        
+    def pohyb(self, dt):
+        self.x += self.vx*dt
+        self.y += self.vy*dt
+        self.vx += self.a*dt
+        self.vy += self.a*dt
+        
+        self.top = self.y + self.velikost
+        self.bottom = self.y - self.velikost
+        self.left = self.x - self.velikost
+        self.right = self.x + self.velikost
+        
+class Box():
+    def __init__(self, length, height):
+        self.length = length
+        self.height = height
+        self.top = height
+        self.bottom = 0
+        self.right = length
+        self.left = 0
+        
+# hlavní funkce
+def simulaceBP(N = 50,
+                    rychl = 2,
+                    velky_velikost = 0.25,
+                    maly_velikost = 0.05,
+                    velky_vaha = 1,
+                    maly_vaha = 0.9,
+                    time = 5, 
+                    FPS = 60, 
+                    length = 5, 
+                    height = 5):
+    
+    
+    def akce(dt, time, box, atoms, Xdata, Ydata):
+        #pohyby
+        w = 0
+        frames = 1/dt*time
+       
+        while w < frames:
+            j = 0
+            for atom in atoms:
+                dotykBox(atom, box)
+                k = 0
+                for atom2 in atoms:
+                    if k > j:
+                        dotykAtom(atom, atom2)
+                    k += 1
+                        
+                atom.pohyb(dt)
+                Xdata[w, j] = atom.x 
+                Ydata[w, j] = atom.y
+                j += 1
+            w += 1
+        return Xdata, Ydata
+
+    # kontrola jestli neni dotyk s boxem
+    def dotykBox(atom, box):
+        
+        if atom.top >= box.top or atom.bottom <= box.bottom:
+            atom.vy = -atom.vy
+        if atom.right >= box.right or atom.left <= box.left:
+            atom.vx = -atom.vx
+        
+    # kontrola jestli neni dotyk s částicí        
+    def dotykAtom(atom1, atom2):
+        
+        def novaRychlost(v1i, v2i, X1, X2, m1, m2):
+            
+            v1f = v1i-(2*m2/(m1+m2))*np.dot(v1i-v2i, X1-X2)/(np.linalg.norm(X1-X2)**2)*(X1-X2)
+                             
+            return v1f
+        
+        vzd = np.sqrt((atom2.x - atom1.x)**2 + (atom2.y - atom1.y)**2)
+        R = atom1.velikost + atom2.velikost
+        if vzd <= R:
+            X1 = np.array([atom1.x, atom1.y])
+            X2 = np.array([atom2.x, atom2.y])
+            v1i = np.array([atom1.vx, atom1.vy])
+            v2i = np.array([atom2.vx, atom2.vy])
+            m1 = atom1.vaha
+            m2 = atom2.vaha
+            atom1.vx, atom1.vy = novaRychlost(v1i, v2i, X1, X2, m1, m2)
+            atom2.vx, atom2.vy = novaRychlost(v2i, v1i, X2, X1, m2, m1)
+            
+    # funkce pro zobrazení animace
+            
+    def nastav():
+       
+        for n in range(len(atoms)):
+            patch = puntik[n]
+            patch.center = (Xdata[0,n], Ydata[0,n])
+            ax.add_patch(patch)
+        return puntik
+        
+        
+    def animuj(i):
+        
+        xs = Xdata[1:i,N]
+        ys = Ydata[1:i,N]
+        puntik.append(plt.plot(xs,ys,color ='green'))
+        for n in range(len(atoms)):
+            patch = puntik[n]
+            patch.center = (Xdata[i,n], Ydata[i,n])
+        return puntik
+        
+    # hlavní kód
+    
+    master.destroy()
+        
+    dt = 1/FPS    
+    totalframes = time*FPS
+    a = 0
+    
+    # inicializace velké částice a boxu
+    velkyatom = Atom(0, 0, height/2, length/2,a, velky_vaha, velky_velikost, 'red')
+    box = Box(length, height)
+    
+    atoms = []
+    puntik = []
+    
+    # vygenerování N malých částic
+    for _ in range(N):
+        xi = rand.uniform(maly_velikost, box.length - maly_velikost)
+        yi = rand.uniform(maly_velikost, box.height - maly_velikost)
+        
+        vxi = rand.normalvariate(0, rychl*rychl/2)
+        vyi = rand.normalvariate(0, rychl*rychl/2)
+        
+        atom = Atom(vxi, vyi, xi, yi, a, maly_vaha, maly_velikost, 'blue')
+        atoms.append(atom)
+        puntik.append(plt.Circle((atom.x,atom.y), atom.velikost,fc = atom.barva))
+    
+    atoms.append(velkyatom)
+    puntik.append(plt.Circle((velkyatom.x,velkyatom.y), velkyatom.velikost, fc = velkyatom.barva))
+        
+    Xdata = np.zeros((len(np.arange(0,time,dt)), N+1))
+    Ydata = np.zeros((len(np.arange(0,time,dt)), N+1))
+        
+    # vlastní simulace
+    Xdata, Ydata = akce(dt, time, box, atoms, Xdata, Ydata)
+    
+    # kreslení
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set(xlim=(0, box.length), ylim=(0, box.height))
+    ax.set_title("Brownův pohyb - simulace")
+
+    ani = animation.FuncAnimation(fig, animuj,
+                                  init_func=nastav,
+                                  frames=totalframes,
+                                  interval=dt * 1000,
+                                  blit=False,
+                                  cache_frame_data=True)
+    
+    plt.axhline(y = 0, color ="black")
+    plt.axhline(y = 5, color ="black")
+    plt.axvline(x = 0, color ="black")
+    plt.axvline(x = 5, color ="black")
+    
+    # vykreslení animace
+    plt.axis('off')
+    plt.show()
+    return Xdata, Ydata
+    
+    
+# Input okno
+
+master = tk.Tk()
+master.title('Brownův pohyb')
+tk.Label(master, text="Počet", font=("Helvetica", 12)).grid(row=0)
+tk.Label(master, text="Teplota", font=("Helvetica", 12)).grid(row=1)
+tk.Label(master, text="Hmotnost MALY", font=("Helvetica", 12)).grid(row=2)
+tk.Label(master, text="Hmotnost VELKY", font=("Helvetica", 12)).grid(row=3)
+tk.Label(master, text="Přesnost", font=("Helvetica", 12)).grid(row=4)
+tk.Label(master, text="Doba", font=("Helvetica", 12)).grid(row=5)
+
+e1 = tk.Entry(master)
+e2 = tk.Entry(master)
+e3 = tk.Entry(master)
+e4 = tk.Entry(master)
+e5 = tk.Entry(master)
+e6 = tk.Entry(master)
+
+e1.insert(10, "50")
+e2.insert(10, "2")
+e3.insert(10, "0.9")
+e4.insert(10, "1")
+e5.insert(10, "120")
+e6.insert(10, "5")
+
+e1.grid(row=0, column=1)
+e2.grid(row=1, column=1)
+e3.grid(row=2, column=1)
+e4.grid(row=3, column=1)
+e5.grid(row=4, column=1)
+e6.grid(row=5, column=1)
+
+tk.Button(master, text='OK', font=("Helvetica", 14), command=master.quit ).grid(row=7,column=1,sticky=tk.W,pady=4)
+
+master.mainloop()
+
+X, Y = simulaceBP(N = int(e1.get()),
+             rychl = int(e2.get()),
+             velky_velikost = 0.25,
+             maly_velikost = 0.05,
+             velky_vaha = float(e4.get()),
+             maly_vaha = float(e3.get()),
+             time = int(e6.get()),
+             FPS = int(e5.get()),
+             length = 5,
+             height = 5)
+     
