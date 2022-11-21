@@ -3,7 +3,7 @@
 simulace Brownova pohybu a difuze
 program pro demonstraci pohybu velké částice, postrkované malými
 velká částice za sebou nechává stopu svého pohybu   
-po spuštění se objeví okno s možností změnit předpřipravené hodnoty parametrů
+ po spuštění se objeví okno s možností změnit předpřipravené hodnoty parametrů
 
  nastavení: 
             počet malých částic     N
