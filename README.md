@@ -1,0 +1,1 @@
+# Seminarka-fyzika-2022-Jan-sebor
